@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<!--
+ * @Date: 2025-08-18 16:40:59
+ * @LastEditTimes: Do not edit
+ * @Descripttion: describe
+-->
 
-## Getting Started
+# MCP Tool
 
-First, run the development server:
+一个基于 [Next.js](https://nextjs.org) 和 [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol/mcp) 构建的工具，用于测试和使用 MCP 协议功能。
+
+## 项目介绍
+
+MCP Tool 是一个用于与 Model Context Protocol 交互的工具，提供了友好的用户界面，让开发者能够轻松测试和使用 MCP 协议的各种功能。
+
+### 主要功能
+
+- **MCP Playground**: 提供交互式界面，用于测试 MCP 工具和功能
+- **工具列表**: 展示所有可用的 MCP 工具
+- **参数输入**: 支持 JSON 格式的参数输入
+- **结果展示**: 清晰展示 API 调用结果
+
+## 技术栈
+
+- **前端**: Next.js 15, React 19, TailwindCSS 4
+- **MCP**: @modelcontextprotocol/sdk v1.17.3
+- **语言**: TypeScript
+
+## 快速开始
+
+### 安装依赖
+
+```bash
+npm install
+# 或
+yarn install
+# 或
+pnpm install
+# 或
+bun install
+```
+
+### 启动开发服务器
 
 ```bash
 npm run dev
-# or
+# 或
 yarn dev
-# or
+# 或
 pnpm dev
-# or
+# 或
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+启动后，在浏览器中打开 [http://localhost:3000](http://localhost:3000) 查看首页，或访问 [http://localhost:3000/mcp-test](http://localhost:3000/mcp-test) 进入 MCP Playground。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 使用指南
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. 访问 MCP Playground 页面
+2. 从左侧工具列表中选择一个工具
+3. 在参数输入区域编辑 JSON 格式的参数
+4. 点击"执行"按钮发送请求
+5. 在返回结果区域查看 API 响应
 
-## Learn More
+## API 说明
 
-To learn more about Next.js, take a look at the following resources:
+项目提供了以下 MCP API 端点：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `POST /api/mcp` - 支持以下方法:
+  - `tools/list`: 获取所有可用工具列表
+  - `tools/execute`: 执行指定的工具
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 部署
 
-## Deploy on Vercel
+可以使用 Vercel 平台轻松部署此 Next.js 应用：
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourname%2Fmy-mcp-tool)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 了解更多
+
+- [Next.js 文档](https://nextjs.org/docs) - 了解 Next.js 特性和 API
+- [Model Context Protocol](https://github.com/modelcontextprotocol/mcp) - 了解 MCP 协议
