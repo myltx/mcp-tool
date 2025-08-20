@@ -68,6 +68,7 @@ bun dev
 - `POST /api/mcp` - 支持以下方法:
   - `tools/list`: 获取所有可用工具列表
   - `tools/execute`: 执行指定的工具
+  - `tools/getAllWebsites`: 获取[Dream-hub](https://dream-hub.myltx.top/)所有网站信息
 
 ## 部署
 
