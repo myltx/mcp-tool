@@ -6,10 +6,27 @@ type ToolInfo = {
   name: string;
   description: string;
   defaultArgs: Record<string, unknown>;
+  category?: string;
+};
+
+type ExecutionHistory = {
+  id: string;
+  toolName: string;
+  timestamp: Date;
+  success: boolean;
+  duration: number;
+  params: Record<string, unknown>;
+  result?: string;
+};
+
+type ToolStats = {
+  totalExecutions: number;
+  successCount: number;
+  avgDuration: number;
+  lastExecution?: Date;
 };
 
 export default function MCPPlayground() {
-  const [expanded, setExpanded] = useState(false);
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [selectedTool, setSelectedTool] = useState<string>("");
   const [jsonInput, setJsonInput] = useState("{}");
@@ -17,6 +34,13 @@ export default function MCPPlayground() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [executionHistory, setExecutionHistory] = useState<ExecutionHistory[]>(
+    []
+  );
+  const [toolStats, setToolStats] = useState<Record<string, ToolStats>>({});
+  const [showApiExample, setShowApiExample] = useState(false);
 
   // 获取工具列表
   useEffect(() => {
@@ -27,14 +51,110 @@ export default function MCPPlayground() {
     })
       .then((res) => res.json())
       .then((data: { result: ToolInfo[] }) => {
-        setTools(data.result);
-        if (data.result.length > 0) {
-          const firstTool = data.result[0];
+        const toolsWithCategory = data.result.map((tool) => ({
+          ...tool,
+          category: tool.name.includes("recipe")
+            ? "菜谱"
+            : tool.name.includes("git")
+            ? "Git"
+            : tool.name.includes("file")
+            ? "文件"
+            : tool.name.includes("search")
+            ? "搜索"
+            : "其他",
+        }));
+        setTools(toolsWithCategory);
+        if (toolsWithCategory.length > 0) {
+          const firstTool = toolsWithCategory[0];
           setSelectedTool(firstTool.name);
           setJsonInput(JSON.stringify(firstTool.defaultArgs || {}, null, 2));
         }
       });
   }, []);
+
+  // 模拟执行历史数据
+  useEffect(() => {
+    const mockHistory: ExecutionHistory[] = [
+      {
+        id: "1",
+        toolName: "search_recipes",
+        timestamp: new Date(Date.now() - 5 * 60 * 1000),
+        success: true,
+        duration: 250,
+        params: { query: "川菜" },
+      },
+      {
+        id: "2",
+        toolName: "get_recipe_detail",
+        timestamp: new Date(Date.now() - 15 * 60 * 1000),
+        success: true,
+        duration: 180,
+        params: { name: "宫保鸡丁" },
+      },
+    ];
+    setExecutionHistory(mockHistory);
+
+    // 计算工具统计
+    const stats: Record<string, ToolStats> = {};
+    mockHistory.forEach((item) => {
+      if (!stats[item.toolName]) {
+        stats[item.toolName] = {
+          totalExecutions: 0,
+          successCount: 0,
+          avgDuration: 0,
+        };
+      }
+      stats[item.toolName].totalExecutions++;
+      if (item.success) stats[item.toolName].successCount++;
+      stats[item.toolName].avgDuration =
+        (stats[item.toolName].avgDuration + item.duration) / 2;
+      stats[item.toolName].lastExecution = item.timestamp;
+    });
+    setToolStats(stats);
+  }, []);
+
+  // 过滤工具
+  const filteredTools = tools.filter((tool) => {
+    const matchesSearch =
+      tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tool.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" || tool.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // 获取所有分类
+  const categories = [
+    "all",
+    ...new Set(tools.map((tool) => tool.category).filter(Boolean)),
+  ];
+
+  // 总体统计
+  const totalStats = {
+    totalExecutions: Object.values(toolStats).reduce(
+      (sum, stat) => sum + stat.totalExecutions,
+      0
+    ),
+    successRate:
+      Object.values(toolStats).length > 0
+        ? (Object.values(toolStats).reduce(
+            (sum, stat) => sum + stat.successCount,
+            0
+          ) /
+            Object.values(toolStats).reduce(
+              (sum, stat) => sum + stat.totalExecutions,
+              0
+            )) *
+          100
+        : 0,
+    avgDuration:
+      Object.values(toolStats).length > 0
+        ? Object.values(toolStats).reduce(
+            (sum, stat) => sum + stat.avgDuration,
+            0
+          ) / Object.values(toolStats).length
+        : 0,
+  };
 
   const handleToolSelect = (name: string) => {
     setSelectedTool(name);
@@ -48,7 +168,10 @@ export default function MCPPlayground() {
     setError("");
     setResponse("");
     setLoading(true);
+
+    const startTime = Date.now();
     let parsedArgs: Record<string, unknown>;
+
     try {
       parsedArgs = JSON.parse(jsonInput);
     } catch (err: unknown) {
@@ -58,6 +181,7 @@ export default function MCPPlayground() {
       setLoading(false);
       return;
     }
+
     try {
       const res = await fetch("/api/mcp", {
         method: "POST",
@@ -67,8 +191,46 @@ export default function MCPPlayground() {
           params: { name: selectedTool, arguments: parsedArgs },
         }),
       });
+
       const data = await res.json();
+      const duration = Date.now() - startTime;
+      const success = !data.error;
+
       setResponse(JSON.stringify(data, null, 2));
+
+      // 添加到执行历史
+      const newHistoryItem: ExecutionHistory = {
+        id: Date.now().toString(),
+        toolName: selectedTool,
+        timestamp: new Date(),
+        success,
+        duration,
+        params: parsedArgs,
+        result: success ? "Success" : "Error",
+      };
+
+      setExecutionHistory((prev) => [newHistoryItem, ...prev.slice(0, 9)]); // 保持最近10条
+
+      // 更新统计
+      setToolStats((prev) => {
+        const current = prev[selectedTool] || {
+          totalExecutions: 0,
+          successCount: 0,
+          avgDuration: 0,
+        };
+
+        return {
+          ...prev,
+          [selectedTool]: {
+            totalExecutions: current.totalExecutions + 1,
+            successCount: current.successCount + (success ? 1 : 0),
+            avgDuration:
+              (current.avgDuration * current.totalExecutions + duration) /
+              (current.totalExecutions + 1),
+            lastExecution: new Date(),
+          },
+        };
+      });
     } catch (err: unknown) {
       setError(
         "请求失败: " + (err instanceof Error ? err.message : String(err))
@@ -89,6 +251,52 @@ export default function MCPPlayground() {
     setError("");
   };
 
+  // 生成API调用示例
+  const generateApiExample = (format: "curl" | "javascript" | "python") => {
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000";
+    const payload = {
+      method: "tools/execute",
+      params: { name: selectedTool, arguments: JSON.parse(jsonInput) },
+    };
+
+    switch (format) {
+      case "curl":
+        return `curl -X POST ${baseUrl}/api/mcp \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify(payload, null, 2)}'`;
+
+      case "javascript":
+        return `const response = await fetch('${baseUrl}/api/mcp', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(${JSON.stringify(payload, null, 2)})
+});
+
+const data = await response.json();
+console.log(data);`;
+
+      case "python":
+        return `import requests
+import json
+
+url = "${baseUrl}/api/mcp"
+payload = ${JSON.stringify(payload, null, 2).replace(/"/g, '"')}
+headers = {"Content-Type": "application/json"}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data)`;
+
+      default:
+        return "";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* 背景装饰 */}
@@ -97,40 +305,16 @@ export default function MCPPlayground() {
         <div className="absolute rounded-full -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-cyan-400/20 blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 min-h-screen p-6 md:p-10">
-        {/* 页头 */}
-        <div className="mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 mb-6 shadow-lg bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl">
-            <svg
-              className="w-10 h-10 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          </div>
-          <h1 className="mb-4 text-5xl font-bold text-transparent md:text-6xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text">
-            MCP Playground
-          </h1>
-          <p className="max-w-2xl mx-auto text-lg text-slate-600 dark:text-slate-300">
-            调试与验证 MCP 工具的现代化工作台，支持实时执行和结果预览
-          </p>
-        </div>
-
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 lg:grid-cols-[1fr_2fr]">
-            {/* 工具列表 */}
-            <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
-              <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
+      <div className="relative z-10 min-h-screen p-4">
+        {/* 顶部状态栏 */}
+        <div className="mb-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="p-6 border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
                     <svg
-                      className="w-5 h-5 text-white"
+                      className="w-6 h-6 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24">
@@ -138,60 +322,64 @@ export default function MCPPlayground() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
                       />
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                      工具列表
-                    </h2>
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                      MCP 工具调试台
+                    </h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      选择要执行的工具
+                      现代化工具执行与管理平台
                     </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-6">
-                {tools.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-slate-500 dark:text-slate-400">
-                    <div className="w-12 h-12 mb-4 border-4 border-blue-200 rounded-full border-t-blue-500 animate-spin"></div>
-                    <span>加载工具列表中...</span>
+                {/* 实时统计 */}
+                <div className="flex gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {totalStats.totalExecutions}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      总执行次数
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {tools.map((tool) => (
-                      <button
-                        key={tool.name}
-                        onClick={() => handleToolSelect(tool.name)}
-                        className={`w-full text-left p-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
-                          selectedTool === tool.name
-                            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                            : "bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
-                        }`}>
-                        <div className="text-base font-semibold">
-                          {tool.name}
-                        </div>
-                        <div className="mt-1 text-sm opacity-80 line-clamp-2">
-                          {tool.description}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {totalStats.successRate.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      成功率
+                    </div>
                   </div>
-                )}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {totalStats.avgDuration.toFixed(0)}ms
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      平均耗时
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* 右侧内容区 */}
-            <div className="space-y-6">
-              {/* 参数输入 */}
+        {/* 主体内容区 */}
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
+            {/* 左侧工具选择区 */}
+            <div className="space-y-4">
+              {/* 工具选择区 */}
               <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
-                <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
+                <div className="p-4 border-b border-slate-200/50 dark:border-slate-700/50">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
                       <svg
-                        className="w-5 h-5 text-white"
+                        className="w-4 h-4 text-white"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24">
@@ -199,78 +387,179 @@ export default function MCPPlayground() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                         />
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                        参数输入
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                        工具选择
                       </h2>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        配置工具执行参数
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {filteredTools.length} / {tools.length} 个工具
                       </p>
+                    </div>
+                  </div>
+
+                  {/* 搜索和筛选 */}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="搜索工具..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 pl-8 text-sm border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      />
+                      <svg
+                        className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat === "all" ? "全部" : cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 工具列表 */}
+                <div className="p-4">
+                  <div
+                    className="space-y-2 overflow-y-auto"
+                    style={{
+                      maxHeight: "calc(100vh - 650px)",
+                      minHeight: "300px",
+                    }}>
+                    {filteredTools.length === 0 ? (
+                      <div className="py-6 text-center text-slate-500 dark:text-slate-400">
+                        <div className="text-xs">
+                          {tools.length === 0
+                            ? "加载中..."
+                            : "未找到匹配的工具"}
+                        </div>
+                      </div>
+                    ) : (
+                      filteredTools.map((tool) => (
+                        <button
+                          key={tool.name}
+                          onClick={() => handleToolSelect(tool.name)}
+                          className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                            selectedTool === tool.name
+                              ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
+                              : "bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+                          }`}>
+                          <div>
+                            <div className="text-sm font-semibold truncate">
+                              {tool.name}
+                            </div>
+                            <div className="mt-1 text-xs opacity-80 line-clamp-2">
+                              {tool.description}
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              {tool.category && (
+                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-white/20">
+                                  {tool.category}
+                                </span>
+                              )}
+                              {toolStats[tool.name] && (
+                                <div className="text-right">
+                                  <div className="text-xs opacity-70">
+                                    {toolStats[tool.name].totalExecutions}次
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 执行历史和API示例 */}
+              <div className="space-y-4">
+                {/* 执行历史 */}
+                <div className="border shadow-lg bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-xl border-white/20">
+                  <div className="p-3 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded bg-gradient-to-br from-violet-500 to-purple-600">
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          执行历史
+                        </h3>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3">
+                    <div className="space-y-2 overflow-y-auto max-h-32">
+                      {executionHistory.length === 0 ? (
+                        <div className="py-4 text-center text-slate-500 dark:text-slate-400">
+                          <div className="text-xs">暂无历史</div>
+                        </div>
+                      ) : (
+                        executionHistory.slice(0, 3).map((item) => (
+                          <div
+                            key={item.id}
+                            className="p-2 rounded bg-slate-50 dark:bg-slate-700/50">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium truncate text-slate-800 dark:text-slate-200">
+                                {item.toolName}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className={`w-1 h-1 rounded-full ${
+                                    item.success ? "bg-green-500" : "bg-red-500"
+                                  }`}></span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  {item.duration}ms
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="relative">
-                    <textarea
-                      className="w-full h-48 p-4 font-mono text-sm transition-all duration-200 border resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
-                      value={jsonInput}
-                      onChange={(e) => setJsonInput(e.target.value)}
-                      placeholder="输入 JSON 格式的参数..."
-                      spellCheck="false"
-                    />
-                    <button
-                      onClick={() => handleCopy(jsonInput, "params")}
-                      className="absolute p-2 transition-colors duration-200 rounded-lg shadow-sm top-3 right-3 bg-white/80 dark:bg-slate-600/80 hover:bg-white dark:hover:bg-slate-600"
-                      title="复制参数">
-                      {copied === "params" ? (
-                        <svg
-                          className="w-5 h-5 text-green-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-5 h-5 text-slate-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 mt-6">
-                    <button
-                      onClick={handleSend}
-                      disabled={loading}
-                      className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all duration-200 transform shadow-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
-                      {loading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 rounded-full border-white/30 border-t-white animate-spin"></div>
-                          执行中...
-                        </>
-                      ) : (
-                        <>
+                {/* API 调用 */}
+                <div className="border shadow-lg bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-xl border-white/20">
+                  <div className="p-3 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-blue-600">
                           <svg
-                            className="w-5 h-5"
+                            className="w-3 h-3 text-white"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -278,39 +567,229 @@ export default function MCPPlayground() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
                             />
                           </svg>
-                          执行
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={handleClearResponse}
-                      className="flex items-center gap-2 px-6 py-3 font-medium transition-all duration-200 transform border bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl border-slate-200 dark:border-slate-600 hover:scale-105">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                      清空结果
-                    </button>
+                        </div>
+                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          API 示例
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setShowApiExample(!showApiExample)}
+                        className="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-600">
+                        <svg
+                          className={`w-3 h-3 transition-transform ${
+                            showApiExample ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
-                  {error && (
-                    <div className="p-4 mt-4 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-red-100 rounded-full dark:bg-red-800/50">
+                  {showApiExample && selectedTool && (
+                    <div className="p-3">
+                      <div className="space-y-2">
+                        {["curl", "javascript"].map((format) => (
+                          <div key={format}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                {format === "curl" ? "cURL" : "JavaScript"}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  handleCopy(
+                                    generateApiExample(
+                                      format as "curl" | "javascript" | "python"
+                                    ),
+                                    format
+                                  )
+                                }
+                                className="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-600">
+                                {copied === format ? (
+                                  <svg
+                                    className="w-3 h-3 text-green-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    className="w-3 h-3 text-slate-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                    />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                            <pre className="p-2 overflow-x-auto overflow-y-auto font-mono text-xs rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 max-h-20">
+                              {generateApiExample(
+                                format as "curl" | "javascript" | "python"
+                              )}
+                            </pre>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 右侧主工作区 */}
+            <div className="space-y-6">
+              {/* 参数配置和执行结果 */}
+              <div className="grid gap-6 lg:grid-rows-2">
+                {/* 参数输入 */}
+                <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
+                  <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600">
+                        <svg
+                          className="w-5 h-5 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                          参数配置
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          JSON 格式输入
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="relative">
+                      <textarea
+                        className="w-full p-4 font-mono text-sm border rounded-lg resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        style={{
+                          height: "calc(50vh - 240px)",
+                          minHeight: "200px",
+                        }}
+                        value={jsonInput}
+                        onChange={(e) => setJsonInput(e.target.value)}
+                        placeholder="输入 JSON 格式的参数..."
+                        spellCheck="false"
+                      />
+                      <button
+                        onClick={() => handleCopy(jsonInput, "params")}
+                        className="absolute p-2 transition-colors rounded-lg top-3 right-3 bg-white/80 dark:bg-slate-600/80 hover:bg-white dark:hover:bg-slate-600">
+                        {copied === "params" ? (
                           <svg
-                            className="w-5 h-5 text-red-600 dark:text-red-400"
+                            className="w-4 h-4 text-green-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="w-4 h-4 text-slate-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-3 mt-4">
+                      <button
+                        onClick={handleSend}
+                        disabled={loading || !selectedTool}
+                        className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {loading ? (
+                          <>
+                            <div className="w-5 h-5 border-2 rounded-full border-white/30 border-t-white animate-spin"></div>
+                            执行中
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 10V3L4 14h7v7l9-11h-7z"
+                              />
+                            </svg>
+                            执行工具
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={handleClearResponse}
+                        className="flex items-center gap-2 px-4 py-3 transition-all rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                        清空结果
+                      </button>
+                    </div>
+
+                    {error && (
+                      <div className="p-4 mt-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className="flex-shrink-0 w-6 h-6 text-red-500"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -321,150 +800,112 @@ export default function MCPPlayground() {
                               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                        </div>
-                        <span className="font-medium text-red-700 dark:text-red-300">
-                          {error}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 返回结果 */}
-              <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
-                <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
-                        <svg
-                          className="w-5 h-5 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                          执行结果
-                        </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          查看工具执行输出
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCopy(response, "result")}
-                        disabled={!response}
-                        className="flex items-center gap-2 px-4 py-2 transition-all duration-200 border rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {copied === "result" ? (
-                          <>
-                            <svg
-                              className="w-4 h-4 text-green-500"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                            已复制
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                              />
-                            </svg>
-                            复制结果
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => setExpanded(!expanded)}
-                        disabled={!response}
-                        className="flex items-center gap-2 px-4 py-2 transition-all duration-200 border rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {expanded ? (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 15l7-7 7 7"
-                              />
-                            </svg>
-                            折叠
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                            展开
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <div className="relative">
-                    <pre
-                      className={`w-full p-4 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl overflow-auto font-mono text-sm text-slate-700 dark:text-slate-300 transition-all duration-300 whitespace-pre-wrap break-all ${
-                        expanded ? "max-h-[600px]" : "max-h-48"
-                      }`}>
-                      {response || (
-                        <span className="italic text-slate-400 dark:text-slate-500">
-                          执行结果将在这里显示...
-                        </span>
-                      )}
-                    </pre>
-
-                    {loading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl">
-                        <div className="text-center">
-                          <div className="w-12 h-12 mx-auto mb-3 border-4 border-blue-200 rounded-full border-t-blue-500 animate-spin"></div>
-                          <span className="text-slate-600 dark:text-slate-400">
-                            正在执行...
+                          <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                            {error}
                           </span>
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* 执行结果 */}
+                <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
+                  <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+                          <svg
+                            className="w-5 h-5 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                            执行结果
+                          </h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            实时输出显示
+                          </p>
+                        </div>
+                      </div>
+
+                      {response && (
+                        <button
+                          onClick={() => handleCopy(response, "result")}
+                          className="flex items-center gap-2 px-4 py-2 text-sm transition-all rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">
+                          {copied === "result" ? (
+                            <>
+                              <svg
+                                className="w-4 h-4 text-green-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              已复制
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                />
+                              </svg>
+                              复制结果
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="relative">
+                      <pre
+                        className="w-full p-4 overflow-auto font-mono text-sm break-all whitespace-pre-wrap border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+                        style={{
+                          height: "calc(50vh - 240px)",
+                          minHeight: "200px",
+                        }}>
+                        {response || (
+                          <span className="italic text-slate-400 dark:text-slate-500">
+                            执行结果将在这里显示...
+                          </span>
+                        )}
+                      </pre>
+
+                      {loading && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                          <div className="text-center">
+                            <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 rounded-full border-t-blue-500 animate-spin"></div>
+                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400">
+                              正在执行...
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -473,7 +914,7 @@ export default function MCPPlayground() {
         </div>
 
         {/* 页脚 */}
-        <div className="mt-16 text-center">
+        <div className="mt-12 text-center">
           <div className="inline-flex items-center gap-2 px-6 py-3 border rounded-full shadow-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-white/20">
             <svg
               className="w-5 h-5 text-slate-500"

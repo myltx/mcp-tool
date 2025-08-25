@@ -20,8 +20,8 @@ export default function Home() {
         <div className="absolute bg-pink-300 rounded-full -bottom-8 left-20 w-96 h-96 mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
 
-      <main className="relative z-10 flex flex-col items-center w-full max-w-4xl gap-10 p-8 mx-auto">
-        <div className="flex flex-col items-center w-full gap-8 p-10 border shadow-2xl border-gray-200/30 bg-white/90 dark:bg-gray-900/90 rounded-3xl dark:border-gray-700/50 backdrop-blur-lg">
+      <main className="relative z-10 flex flex-col items-center w-full max-w-6xl gap-4 p-4 mx-auto">
+        <div className="flex flex-col items-center w-full gap-4 p-6 border shadow-2xl border-gray-200/30 bg-white/90 dark:bg-gray-900/90 rounded-3xl dark:border-gray-700/50 backdrop-blur-lg">
           {/* Logo区域 */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
@@ -42,12 +42,13 @@ export default function Home() {
               MCP 工具箱
             </h1>
             <p className="max-w-2xl text-xl text-center text-gray-600 dark:text-gray-300">
-              开发、测试和部署你的现代 MCP 工具，提升工作效率
+              基于 Model Context Protocol
+              构建的现代化工具平台，集成智能菜谱系统与 MCP Playground 调试环境
             </p>
           </div>
 
           {/* 功能卡片 */}
-          <div className="grid w-full max-w-4xl grid-cols-1 gap-6 mt-4 md:grid-cols-3">
+          <div className="grid w-full max-w-5xl grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="p-5 transition-all duration-300 border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border-gray-200/30 dark:border-gray-700/30 hover:shadow-lg hover:-translate-y-1">
               <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500">
                 <svg
@@ -60,15 +61,39 @@ export default function Home() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
               </div>
               <h3 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white">
-                快速开发
+                MCP Playground
               </h3>
               <p className="text-sm text-center text-gray-600 dark:text-gray-300">
-                使用现代化工具链快速构建 MCP 工具
+                实时测试 MCP 工具，支持 9 个内置工具调试
+              </p>
+            </div>
+
+            <div className="p-5 transition-all duration-300 border bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border-gray-200/30 dark:border-gray-700/30 hover:shadow-lg hover:-translate-y-1">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white">
+                智能菜谱系统
+              </h3>
+              <p className="text-sm text-center text-gray-600 dark:text-gray-300">
+                6 个菜谱工具，支持搜索、推荐、智能搭配
               </p>
             </div>
 
@@ -89,15 +114,15 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white">
-                安全可靠
+                模块化架构
               </h3>
               <p className="text-sm text-center text-gray-600 dark:text-gray-300">
-                内置安全机制，保护您的数据和隐私
+                TypeScript + 智能缓存，易于扩展
               </p>
             </div>
 
-            <div className="p-5 transition-all duration-300 border bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border-gray-200/30 dark:border-gray-700/30 hover:shadow-lg hover:-translate-y-1">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500">
+            <div className="p-5 transition-all duration-300 border bg-gradient-to-br from-orange-50 to-red-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border-gray-200/30 dark:border-gray-700/30 hover:shadow-lg hover:-translate-y-1">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-r from-orange-500 to-red-500">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="w-6 h-6 text-white"
@@ -108,15 +133,15 @@ export default function Home() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
               </div>
               <h3 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white">
-                高效协作
+                智能推荐
               </h3>
               <p className="text-sm text-center text-gray-600 dark:text-gray-300">
-                支持团队协作，共享工具和资源
+                根据人数自动配置荤素搭配菜品
               </p>
             </div>
           </div>
@@ -164,8 +189,7 @@ export default function Home() {
           <div className="flex flex-col justify-center w-full gap-4 mt-6 sm:flex-row">
             <a
               className="flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold text-white transition-all duration-300 transform shadow-lg rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-1"
-              href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
+              href="/mcp-test"
               rel="noopener noreferrer">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -178,11 +202,11 @@ export default function Home() {
                   clipRule="evenodd"
                 />
               </svg>
-              一键部署
+              体验 MCP Playground
             </a>
             <a
               className="flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold text-gray-800 transition-all duration-300 transform border border-gray-300 dark:text-white rounded-xl dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg hover:-translate-y-1"
-              href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+              href="https://modelcontextprotocol.io/docs/getting-started/intro"
               target="_blank"
               rel="noopener noreferrer">
               <svg
@@ -196,7 +220,7 @@ export default function Home() {
                   clipRule="evenodd"
                 />
               </svg>
-              查看文档
+              了解 MCP 协议
             </a>
           </div>
         </div>
