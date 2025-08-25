@@ -47,6 +47,15 @@ MCP Tool 是一个采用模块化架构设计的 MCP 协议交互平台，集成
 - **MCP 协议**: @modelcontextprotocol/sdk v1.17.3
 - **数据源**: [weilei.site](https://weilei.site/all_recipes.json) 真实菜谱数据
 
+## 致谢
+
+本项目的菜谱功能借鉴了 [HowToCook-mcp](https://github.com/worryzyy/HowToCook-mcp/) 项目的创意和设计思路。感谢该项目为开源社区提供的优秀示例和灵感。
+
+特别感谢：
+
+- [worryzyy/HowToCook-mcp](https://github.com/worryzyy/HowToCook-mcp/) - 菜谱 MCP 工具的原始创意来源
+- [weilei.site](https://weilei.site/all_recipes.json) - 提供真实可靠的菜谱数据源
+
 ## 项目架构
 
 ```
