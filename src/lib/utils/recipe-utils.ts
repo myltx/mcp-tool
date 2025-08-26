@@ -7,9 +7,9 @@ import type {
   RecipeWithDifficulty,
   Ingredient,
   SimplifiedRecipe,
-  ShoppingItem,
   CookingTimeStats,
 } from "../types";
+import type { ShoppingItem } from "../types/recipe";
 
 /**
  * 获取难度级别的中文描述

@@ -1,17 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import type { DishRecommendation, SimplifiedRecipe } from "../lib/types";
+
+interface SmartResultDisplayProps {
+  result: DishRecommendation | Record<string, unknown>;
+  toolName: string;
+}
 
 export function SmartResultDisplay({
   result,
   toolName,
-}: {
-  result: any;
-  toolName: string;
-}) {
+}: SmartResultDisplayProps) {
   const [viewMode, setViewMode] = useState<"smart" | "json">("smart");
 
-  const isWhatToEatResult = toolName === "whatToEat" && result?.dishes;
+  // 类型保护函数
+  const isDishRecommendation = (data: unknown): data is DishRecommendation => {
+    return (
+      typeof data === "object" &&
+      data !== null &&
+      "dishes" in data &&
+      Array.isArray((data as DishRecommendation).dishes)
+    );
+  };
+
+  const isWhatToEatResult =
+    toolName === "whatToEat" && isDishRecommendation(result);
   const canUseSmartDisplay = isWhatToEatResult;
 
   return (
@@ -47,23 +61,23 @@ export function SmartResultDisplay({
           <div className="p-4 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                {result.peopleCount}人菜单推荐
+                {(result as DishRecommendation).peopleCount}人菜单推荐
               </h3>
               <span className="px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-300">
-                共{result.dishes?.length}道菜
+                共{(result as DishRecommendation).dishes?.length}道菜
               </span>
             </div>
 
-            {result.message && (
+            {(result as DishRecommendation).message && (
               <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
-                {result.message}
+                {(result as DishRecommendation).message}
               </p>
             )}
 
             <div className="grid grid-cols-3 gap-3">
               <div className="p-2 text-center rounded bg-white/60 dark:bg-slate-800/60">
                 <div className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                  {result.meatDishCount}
+                  {(result as DishRecommendation).meatDishCount}
                 </div>
                 <div className="text-xs text-slate-600 dark:text-slate-400">
                   荤菜
@@ -71,7 +85,7 @@ export function SmartResultDisplay({
               </div>
               <div className="p-2 text-center rounded bg-white/60 dark:bg-slate-800/60">
                 <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                  {result.vegetableDishCount}
+                  {(result as DishRecommendation).vegetableDishCount}
                 </div>
                 <div className="text-xs text-slate-600 dark:text-slate-400">
                   素菜
@@ -79,7 +93,7 @@ export function SmartResultDisplay({
               </div>
               <div className="p-2 text-center rounded bg-white/60 dark:bg-slate-800/60">
                 <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                  {result.dishes?.length}
+                  {(result as DishRecommendation).dishes?.length}
                 </div>
                 <div className="text-xs text-slate-600 dark:text-slate-400">
                   总数
@@ -90,48 +104,50 @@ export function SmartResultDisplay({
 
           {/* 菜品列表 */}
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {result.dishes?.map((dish: any, i: number) => (
-              <div
-                key={i}
-                className="p-3 transition-shadow bg-white border rounded-lg dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-md">
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-medium text-slate-800 dark:text-slate-200">
-                    {dish.name}
-                  </h4>
-                  {dish.difficultyText && (
-                    <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded">
-                      {dish.difficultyText}
-                    </span>
+            {(result as DishRecommendation).dishes?.map(
+              (dish: SimplifiedRecipe, i: number) => (
+                <div
+                  key={dish.id || i}
+                  className="p-3 transition-shadow bg-white border rounded-lg dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-md">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-slate-800 dark:text-slate-200">
+                      {dish.name}
+                    </h4>
+                    {dish.difficultyText && (
+                      <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded">
+                        {dish.difficultyText}
+                      </span>
+                    )}
+                  </div>
+                  {dish.description && (
+                    <p className="mb-2 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                      {dish.description}
+                    </p>
                   )}
+                  <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    {dish.category && (
+                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+                        {dish.category}
+                      </span>
+                    )}
+                    {dish.total_time_minutes && (
+                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+                        {dish.total_time_minutes}分钟
+                      </span>
+                    )}
+                    {dish.servings && (
+                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+                        {dish.servings}人份
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {dish.description && (
-                  <p className="mb-2 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                    {dish.description}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  {dish.category && (
-                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
-                      {dish.category}
-                    </span>
-                  )}
-                  {dish.total_time_minutes && (
-                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
-                      {dish.total_time_minutes}分钟
-                    </span>
-                  )}
-                  {dish.servings && (
-                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
-                      {dish.servings}人份
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </div>
       ) : (
-        /* 修复的JSON展示区域 - 添加完整的滚动条支持 */
+        /* JSON展示区域 */
         <div className="bg-white border rounded-lg border-slate-200 dark:border-slate-700 dark:bg-slate-800">
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2">
