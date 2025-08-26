@@ -17,6 +17,8 @@ export type {
   RandomRecipeParams,
   WhatToEatParams,
   SimplifiedRecipe,
+  ShoppingItem,
+  CookingTimeStats,
   DishRecommendation,
 } from "./recipe";
 

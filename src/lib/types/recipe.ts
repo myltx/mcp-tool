@@ -95,6 +95,11 @@ export interface RandomRecipeParams {
 
 export interface WhatToEatParams {
   peopleCount: number;
+  preferFish?: boolean; // 是否偏好带鱼类的推荐
+  vegetarian?: boolean; // 是否需要纯素菜单
+  avoidIngredients?: string[]; // 不想要的食材列表
+  dishCount?: number; // 固定推荐总数
+  seed?: number; // 随机种子，用于可复现的推荐
 }
 
 /**
@@ -116,12 +121,45 @@ export interface SimplifiedRecipe {
 }
 
 /**
+ * 购物清单类型
+ */
+export interface ShoppingItem {
+  name: string;
+  quantity?: string;
+  unit?: string;
+  count: number; // 所需数量汇总
+}
+
+/**
+ * 烹饪时间统计
+ */
+export interface CookingTimeStats {
+  totalPrepTime: number; // 总备料时间（分钟）
+  totalCookTime: number; // 总烹饪时间（分钟）
+  estimatedTotalTime: number; // 预计总用时（分钟）
+  complexity: "simple" | "medium" | "complex"; // 复杂度评估
+}
+
+/**
  * 菜品推荐结果类型
  */
 export interface DishRecommendation {
   peopleCount: number;
   meatDishCount: number;
   vegetableDishCount: number;
+  extraDishCount?: number; // 汤、主食等额外菜品数量
   dishes: SimplifiedRecipe[];
+  shoppingList: ShoppingItem[]; // 购物清单
+  cookingTimeStats: CookingTimeStats; // 烹饪时间统计
+  difficultyAnalysis: {
+    // 难度分析
+    averageDifficulty: number;
+    hasComplexDishes: boolean;
+    simpleCount: number;
+    mediumCount: number;
+    hardCount: number;
+  };
+  cuisineVariety: string[]; // 风味多样性列表
+  cookingMethods: string[]; // 烹饪方式列表
   message: string;
 }

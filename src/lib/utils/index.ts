@@ -14,6 +14,12 @@ export {
   isMeatDish,
   isVegetableDish,
   containsMeatType,
+  getCookingMethod,
+  getCuisineType,
+  getFlavorProfile,
+  generateShoppingList,
+  calculateCookingTimeStats,
+  analyzeDifficulty,
 } from "./recipe-utils";
 
 // MCP 相关工具函数
