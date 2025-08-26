@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { SmartResultDisplay } from "../../components/SmartResultDisplay";
 
 type ToolInfo = {
   name: string;
@@ -458,7 +460,7 @@ print(data)`;
                               )}
                             </button>
                           </div>
-                          <pre className="p-4 overflow-x-auto font-mono text-sm rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
+                          <pre className="p-4 overflow-x-auto font-mono text-sm border rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600">
                             {generateApiExample(
                               format as "curl" | "javascript" | "python"
                             )}
@@ -485,10 +487,13 @@ print(data)`;
           <div className="mx-auto max-w-7xl">
             <div className="p-6 border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+                <div className="flex items-center gap-4">
+                  {/* 返回首页按钮 */}
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors">
                     <svg
-                      className="w-6 h-6 text-white"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24">
@@ -496,17 +501,35 @@ print(data)`;
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
                       />
                     </svg>
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
-                      MCP 工具调试台
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      现代化工具执行与管理平台
-                    </p>
+                    <span>返回首页</span>
+                  </Link>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+                      <svg
+                        className="w-6 h-6 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                        MCP 工具调试台
+                      </h1>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        现代化工具执行与管理平台
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -1151,21 +1174,24 @@ print(data)`;
 
                   <div className="p-6">
                     <div className="relative">
-                      <pre
-                        className="w-full p-4 overflow-auto font-mono text-sm break-all whitespace-pre-wrap border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300"
-                        style={{
-                          height:
-                            fullscreenMode === "result"
-                              ? "calc(100vh - 200px)"
-                              : "calc(50vh - 240px)",
-                          minHeight: "200px",
-                        }}>
-                        {response || (
-                          <span className="italic text-slate-400 dark:text-slate-500">
-                            执行结果将在这里显示...
-                          </span>
-                        )}
-                      </pre>
+                      {response ? (
+                        <SmartResultDisplay
+                          result={JSON.parse(response)?.result}
+                          toolName={selectedTool}
+                        />
+                      ) : (
+                        <div
+                          className="flex items-center justify-center italic text-slate-400 dark:text-slate-500"
+                          style={{
+                            height:
+                              fullscreenMode === "result"
+                                ? "calc(100vh - 200px)"
+                                : "calc(50vh - 240px)",
+                            minHeight: "200px",
+                          }}>
+                          执行结果将在这里显示...
+                        </div>
+                      )}
 
                       {loading && (
                         <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
