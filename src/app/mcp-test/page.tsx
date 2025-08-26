@@ -41,6 +41,9 @@ export default function MCPPlayground() {
   );
   const [toolStats, setToolStats] = useState<Record<string, ToolStats>>({});
   const [showApiExample, setShowApiExample] = useState(false);
+  const [fullscreenMode, setFullscreenMode] = useState<
+    "params" | "result" | "api" | null
+  >(null);
 
   // 获取工具列表
   useEffect(() => {
@@ -299,6 +302,177 @@ print(data)`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* 全屏模式覆盖层 */}
+      {fullscreenMode && (
+        <div className="fixed inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm">
+          <div className="h-full p-6">
+            <div className="h-full border shadow-2xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl border-white/20">
+              {/* 全屏模式头部 */}
+              <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br ${
+                        fullscreenMode === "params"
+                          ? "from-orange-500 to-red-600"
+                          : fullscreenMode === "result"
+                          ? "from-cyan-500 to-blue-600"
+                          : "from-indigo-500 to-blue-600"
+                      }`}>
+                      <svg
+                        className="w-5 h-5 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={
+                            fullscreenMode === "params"
+                              ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              : fullscreenMode === "result"
+                              ? "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              : "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                          }
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                        {fullscreenMode === "params"
+                          ? "参数配置"
+                          : fullscreenMode === "result"
+                          ? "执行结果"
+                          : "API 示例"}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        全屏模式
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setFullscreenMode(null)}
+                    className="p-2 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600"
+                    title="退出全屏">
+                    <svg
+                      className="w-6 h-6 text-slate-600 dark:text-slate-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* 全屏模式内容 */}
+              <div className="p-6" style={{ height: "calc(100% - 80px)" }}>
+                {fullscreenMode === "params" && (
+                  <div style={{ height: "100%" }}>
+                    <textarea
+                      className="w-full p-4 font-mono text-sm border rounded-lg resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      style={{ height: "100%" }}
+                      value={jsonInput}
+                      onChange={(e) => setJsonInput(e.target.value)}
+                      placeholder="输入 JSON 格式的参数..."
+                      spellCheck="false"
+                    />
+                  </div>
+                )}
+
+                {fullscreenMode === "result" && (
+                  <div style={{ height: "100%" }}>
+                    <pre
+                      className="w-full p-4 overflow-auto font-mono text-sm break-all whitespace-pre-wrap border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+                      style={{ height: "100%" }}>
+                      {response || (
+                        <span className="italic text-slate-400 dark:text-slate-500">
+                          执行结果将在这里显示...
+                        </span>
+                      )}
+                    </pre>
+                  </div>
+                )}
+
+                {fullscreenMode === "api" && selectedTool && (
+                  <div style={{ height: "100%", overflowY: "auto" }}>
+                    <div className="space-y-4">
+                      {["curl", "javascript", "python"].map((format) => (
+                        <div key={format}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-medium text-slate-700 dark:text-slate-300">
+                              {format === "curl"
+                                ? "cURL"
+                                : format === "javascript"
+                                ? "JavaScript"
+                                : "Python"}
+                            </span>
+                            <button
+                              onClick={() =>
+                                handleCopy(
+                                  generateApiExample(
+                                    format as "curl" | "javascript" | "python"
+                                  ),
+                                  format
+                                )
+                              }
+                              className="flex items-center gap-2 px-3 py-2 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">
+                              {copied === format ? (
+                                <>
+                                  <svg
+                                    className="w-4 h-4 text-green-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                  已复制
+                                </>
+                              ) : (
+                                <>
+                                  <svg
+                                    className="w-4 h-4 text-slate-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                    />
+                                  </svg>
+                                  复制代码
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <pre className="p-4 overflow-x-auto font-mono text-sm rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
+                            {generateApiExample(
+                              format as "curl" | "javascript" | "python"
+                            )}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 背景装饰 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute rounded-full -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 blur-3xl"></div>
@@ -575,30 +749,63 @@ print(data)`;
                           API 示例
                         </h3>
                       </div>
-                      <button
-                        onClick={() => setShowApiExample(!showApiExample)}
-                        className="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-600">
-                        <svg
-                          className={`w-3 h-3 transition-transform ${
-                            showApiExample ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            setFullscreenMode(
+                              fullscreenMode === "api" ? null : "api"
+                            )
+                          }
+                          className="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-600"
+                          title="全屏显示">
+                          <svg
+                            className="w-3 h-3 text-slate-600 dark:text-slate-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d={
+                                fullscreenMode === "api"
+                                  ? "M6 18L18 6M6 6l12 12"
+                                  : "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                              }
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setShowApiExample(!showApiExample)}
+                          className="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-600">
+                          <svg
+                            className={`w-3 h-3 transition-transform ${
+                              showApiExample ? "rotate-180" : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   {showApiExample && selectedTool && (
                     <div className="p-3">
-                      <div className="space-y-2">
+                      <div
+                        className="space-y-2"
+                        style={{
+                          maxHeight:
+                            fullscreenMode === "api" ? "none" : "200px",
+                          overflowY: "auto",
+                        }}>
                         {["curl", "javascript"].map((format) => (
                           <div key={format}>
                             <div className="flex items-center justify-between mb-1">
@@ -644,7 +851,12 @@ print(data)`;
                                 )}
                               </button>
                             </div>
-                            <pre className="p-2 overflow-x-auto overflow-y-auto font-mono text-xs rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 max-h-20">
+                            <pre
+                              className="p-2 overflow-x-auto overflow-y-auto font-mono text-xs rounded text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50"
+                              style={{
+                                maxHeight:
+                                  fullscreenMode === "api" ? "400px" : "80px",
+                              }}>
                               {generateApiExample(
                                 format as "curl" | "javascript" | "python"
                               )}
@@ -661,14 +873,45 @@ print(data)`;
             {/* 右侧主工作区 */}
             <div className="space-y-6">
               {/* 参数配置和执行结果 */}
-              <div className="grid gap-6 lg:grid-rows-2">
+              <div className="grid gap-6 lg:grid-rows-[auto_1fr]">
                 {/* 参数输入 */}
                 <div className="border shadow-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border-white/20">
                   <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600">
+                          <svg
+                            className="w-5 h-5 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                            参数配置
+                          </h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            JSON 格式输入
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setFullscreenMode(
+                            fullscreenMode === "params" ? null : "params"
+                          )
+                        }
+                        className="p-2 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600"
+                        title="全屏显示">
                         <svg
-                          className="w-5 h-5 text-white"
+                          className="w-5 h-5 text-slate-600 dark:text-slate-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24">
@@ -676,18 +919,14 @@ print(data)`;
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            d={
+                              fullscreenMode === "params"
+                                ? "M6 18L18 6M6 6l12 12"
+                                : "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                            }
                           />
                         </svg>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                          参数配置
-                        </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          JSON 格式输入
-                        </p>
-                      </div>
+                      </button>
                     </div>
                   </div>
 
@@ -696,8 +935,11 @@ print(data)`;
                       <textarea
                         className="w-full p-4 font-mono text-sm border rounded-lg resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         style={{
-                          height: "calc(50vh - 240px)",
-                          minHeight: "200px",
+                          height:
+                            fullscreenMode === "params"
+                              ? "calc(100vh - 200px)"
+                              : "160px",
+                          minHeight: "160px",
                         }}
                         value={jsonInput}
                         onChange={(e) => setJsonInput(e.target.value)}
@@ -838,45 +1080,72 @@ print(data)`;
                         </div>
                       </div>
 
-                      {response && (
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleCopy(response, "result")}
-                          className="flex items-center gap-2 px-4 py-2 text-sm transition-all rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">
-                          {copied === "result" ? (
-                            <>
-                              <svg
-                                className="w-4 h-4 text-green-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              已复制
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                                />
-                              </svg>
-                              复制结果
-                            </>
-                          )}
+                          onClick={() =>
+                            setFullscreenMode(
+                              fullscreenMode === "result" ? null : "result"
+                            )
+                          }
+                          className="p-2 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600"
+                          title="全屏显示">
+                          <svg
+                            className="w-5 h-5 text-slate-600 dark:text-slate-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d={
+                                fullscreenMode === "result"
+                                  ? "M6 18L18 6M6 6l12 12"
+                                  : "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                              }
+                            />
+                          </svg>
                         </button>
-                      )}
+                        {response && (
+                          <button
+                            onClick={() => handleCopy(response, "result")}
+                            className="flex items-center gap-2 px-4 py-2 text-sm transition-all rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">
+                            {copied === "result" ? (
+                              <>
+                                <svg
+                                  className="w-4 h-4 text-green-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                已复制
+                              </>
+                            ) : (
+                              <>
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                  />
+                                </svg>
+                                复制结果
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -885,7 +1154,10 @@ print(data)`;
                       <pre
                         className="w-full p-4 overflow-auto font-mono text-sm break-all whitespace-pre-wrap border rounded-lg bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300"
                         style={{
-                          height: "calc(50vh - 240px)",
+                          height:
+                            fullscreenMode === "result"
+                              ? "calc(100vh - 200px)"
+                              : "calc(50vh - 240px)",
                           minHeight: "200px",
                         }}>
                         {response || (
@@ -910,27 +1182,6 @@ print(data)`;
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* 页脚 */}
-        <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 border rounded-full shadow-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-white/20">
-            <svg
-              className="w-5 h-5 text-slate-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              © {new Date().getFullYear()} MCP Tool - 现代化工具调试平台
-            </span>
           </div>
         </div>
       </div>
