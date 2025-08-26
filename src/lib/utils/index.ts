@@ -13,6 +13,7 @@ export {
   simplifyRecipe,
   isMeatDish,
   isVegetableDish,
+  containsAnimalProtein,
   containsMeatType,
   getCookingMethod,
   getCuisineType,

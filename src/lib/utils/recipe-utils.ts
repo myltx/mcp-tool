@@ -116,22 +116,84 @@ export function simplifyRecipe(recipe: Recipe): SimplifiedRecipe {
 }
 
 /**
- * 检查菜谱是否为荒菜（根据分类判断）
+ * 检查菜谱是否为荒菜（根据分类和食材判断）
  */
 export function isMeatDish(recipe: Recipe): boolean {
-  return recipe.category === "荒菜" || recipe.category === "水产";
+  // 分类判断
+  if (recipe.category === "荒菜" || recipe.category === "水产") {
+    return true;
+  }
+
+  // 食材判断 - 检查是否包含动物蛋白
+  return containsAnimalProtein(recipe);
 }
 
 /**
- * 检查菜谱是否为素菜（根据分类判断）
+ * 检查菜谱是否包含动物蛋白（更精确的判断）
+ */
+export function containsAnimalProtein(recipe: Recipe): boolean {
+  const animalProteins = [
+    "猪",
+    "牛",
+    "鸡",
+    "鸭",
+    "羊",
+    "兔",
+    "鹅", // 畜禽肉
+    "鱼",
+    "虾",
+    "蟹",
+    "蛤",
+    "蚝",
+    "蚌",
+    "贝",
+    "鳗",
+    "鲳",
+    "鲤",
+    "鲫",
+    "带鱼",
+    "黄鱼",
+    "鲑鱼",
+    "三文鱼", // 水产
+    "肉",
+    "蛋",
+    "奶",
+    "奶酪",
+    "黄油",
+    "奶油",
+    "酸奶", // 通用动物制品
+    "火腿",
+    "腊肉",
+    "香肠",
+    "培根",
+    "肉松",
+    "肉丸", // 肉制品
+  ];
+
+  return (
+    recipe.ingredients?.some((ingredient) => {
+      const name = ingredient.name?.toLowerCase() || "";
+      return animalProteins.some((protein) => name.includes(protein));
+    }) || false
+  );
+}
+
+/**
+ * 检查菜谱是否为素菜（更严格的判断）
  */
 export function isVegetableDish(recipe: Recipe): boolean {
-  return (
-    recipe.category !== "荒菜" &&
-    recipe.category !== "水产" &&
-    recipe.category !== "早餐" &&
-    recipe.category !== "主食"
-  );
+  // 排除明确的荒菜分类
+  if (recipe.category === "荒菜" || recipe.category === "水产") {
+    return false;
+  }
+
+  // 排除早餐和主食（可能含动物制品）
+  if (recipe.category === "早餐" || recipe.category === "主食") {
+    return !containsAnimalProtein(recipe);
+  }
+
+  // 检查是否不含动物蛋白
+  return !containsAnimalProtein(recipe);
 }
 
 /**

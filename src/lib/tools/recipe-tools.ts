@@ -138,22 +138,34 @@ export const whatToEat: ToolBase = {
       );
     }
 
-    // 全素食模式
+    // 全素食模式下过滤菜谱
     if (vegetarian) {
       recipes = recipes.filter((r) => isVegetableDish(r));
+      if (recipes.length === 0) {
+        return { error: "没有找到符合全素要求的菜谱" };
+      }
     }
 
     // 改进的荤素数量计算
-    let meatCount = Math.ceil(peopleCount * 0.6);
-    let vegetableCount = Math.ceil(peopleCount * 0.4);
+    let meatCount = 0;
+    let vegetableCount = 0;
+    let totalDishCount = 0;
 
-    // 如果用户指定 dishCount，重新分配比例
-    if (dishCount && dishCount > 0) {
-      meatCount = Math.ceil(dishCount * 0.6);
-      vegetableCount = dishCount - meatCount;
-      if (vegetarian) {
-        meatCount = 0;
-        vegetableCount = dishCount;
+    if (vegetarian) {
+      // 全素模式：所有菜品都是素菜
+      meatCount = 0;
+      vegetableCount = dishCount || Math.max(peopleCount, 3); // 至少3道菜
+      totalDishCount = vegetableCount;
+    } else {
+      // 非素食模式：按比例分配
+      if (dishCount && dishCount > 0) {
+        totalDishCount = dishCount;
+        meatCount = Math.ceil(dishCount * 0.6);
+        vegetableCount = dishCount - meatCount;
+      } else {
+        meatCount = Math.ceil(peopleCount * 0.6);
+        vegetableCount = Math.ceil(peopleCount * 0.4);
+        totalDishCount = meatCount + vegetableCount;
       }
     }
 
@@ -239,10 +251,21 @@ export const whatToEat: ToolBase = {
     const soupDishes = recipes.filter((r) => r.category === "汤类");
     const stapleDishes = recipes.filter((r) => r.category === "主食");
 
-    // 选择鱼类（如果需要）
+    // 选择鱼类（仅在非素食模式下）
     let fishDish: Recipe | null = null;
-    if (preferFish || peopleCount > 8) {
-      const fishDishes = recipes.filter((r) => r.category === "水产");
+    if (!vegetarian && (preferFish || peopleCount > 8)) {
+      const fishDishes = recipes.filter(
+        (r) =>
+          r.category === "水产" ||
+          r.ingredients?.some(
+            (ing) =>
+              ing.name.includes("鱼") ||
+              ing.name.includes("虾") ||
+              ing.name.includes("蟹") ||
+              ing.name.includes("蛤") ||
+              ing.name.includes("鳗")
+          )
+      );
       if (fishDishes.length > 0) {
         const fishIndex = Math.floor(
           seededRandom(seed + 1) * fishDishes.length
@@ -251,36 +274,64 @@ export const whatToEat: ToolBase = {
       }
     }
 
-    // 智能选择荤菜（排除鱼类，确保多样性）
-    const nonFishMeatDishes = meatDishes.filter(
-      (dish) => !fishDish || dish.id !== fishDish.id
-    );
-    const selectedMeatDishes = selectDiverseRecipes(
-      nonFishMeatDishes,
-      fishDish ? meatCount - 1 : meatCount,
-      seed + 100
-    );
+    // 选择菜品的逻辑
+    let selectedMeatDishes: Recipe[] = [];
+    let selectedVegetableDishes: Recipe[] = [];
 
-    // 智能选择素菜
-    const selectedVegetableDishes = selectDiverseRecipes(
-      vegetableDishes,
-      vegetableCount,
-      seed + 200
-    );
+    if (vegetarian) {
+      // 全素模式：只选素菜
+      selectedVegetableDishes = selectDiverseRecipes(
+        vegetableDishes,
+        vegetableCount,
+        seed + 200
+      );
+    } else {
+      // 非素食模式：选择荤菜和素菜
 
-    // 汤和主食推荐
+      // 智能选择荤菜（排除鱼类，确保多样性）
+      const nonFishMeatDishes = meatDishes.filter(
+        (dish) => !fishDish || dish.id !== fishDish.id
+      );
+      selectedMeatDishes = selectDiverseRecipes(
+        nonFishMeatDishes,
+        fishDish ? meatCount - 1 : meatCount,
+        seed + 100
+      );
+
+      // 智能选择素菜
+      selectedVegetableDishes = selectDiverseRecipes(
+        vegetableDishes,
+        vegetableCount,
+        seed + 200
+      );
+    }
+
+    // 汤和主食推荐（考虑素食限制）
     const extraDishes: Recipe[] = [];
     if (peopleCount >= 5 && soupDishes.length > 0) {
-      const soupIndex = Math.floor(
-        seededRandom(seed + 300) * soupDishes.length
-      );
-      extraDishes.push(soupDishes[soupIndex]);
+      const suitableSoups = vegetarian
+        ? soupDishes.filter((soup) => isVegetableDish(soup))
+        : soupDishes;
+
+      if (suitableSoups.length > 0) {
+        const soupIndex = Math.floor(
+          seededRandom(seed + 300) * suitableSoups.length
+        );
+        extraDishes.push(suitableSoups[soupIndex]);
+      }
     }
+
     if (peopleCount >= 6 && stapleDishes.length > 0) {
-      const stapleIndex = Math.floor(
-        seededRandom(seed + 400) * stapleDishes.length
-      );
-      extraDishes.push(stapleDishes[stapleIndex]);
+      const suitableStaples = vegetarian
+        ? stapleDishes.filter((staple) => isVegetableDish(staple))
+        : stapleDishes;
+
+      if (suitableStaples.length > 0) {
+        const stapleIndex = Math.floor(
+          seededRandom(seed + 400) * suitableStaples.length
+        );
+        extraDishes.push(suitableStaples[stapleIndex]);
+      }
     }
 
     // 合并所有推荐菜谱
@@ -290,6 +341,13 @@ export const whatToEat: ToolBase = {
       ...selectedVegetableDishes,
       ...extraDishes,
     ];
+
+    // 检查结果
+    if (allSelectedDishes.length === 0) {
+      return {
+        error: vegetarian ? "没有找到符合全素要求的菜谱" : "没有找到合适的菜谱",
+      };
+    }
 
     // 生成增强的分析数据
     const shoppingList = generateShoppingList(allSelectedDishes);
@@ -304,11 +362,19 @@ export const whatToEat: ToolBase = {
       ...new Set(allSelectedDishes.map(getCookingMethod)),
     ];
 
+    // 统计荤素菜数量（更精确）
+    const actualMeatCount = allSelectedDishes.filter((dish) =>
+      isMeatDish(dish)
+    ).length;
+    const actualVegetableCount = allSelectedDishes.filter((dish) =>
+      isVegetableDish(dish)
+    ).length;
+
     // 构建详细的推荐结果
     const recommendationDetails: DishRecommendation = {
       peopleCount,
-      meatDishCount: selectedMeatDishes.length + (fishDish ? 1 : 0),
-      vegetableDishCount: selectedVegetableDishes.length,
+      meatDishCount: actualMeatCount,
+      vegetableDishCount: actualVegetableCount,
       extraDishCount: extraDishes.length,
       dishes: allSelectedDishes.map(simplifyRecipe),
       shoppingList,
@@ -316,17 +382,19 @@ export const whatToEat: ToolBase = {
       difficultyAnalysis,
       cuisineVariety,
       cookingMethods,
-      message: `为${peopleCount}人定制的多样化菜单：共${
-        allSelectedDishes.length
-      }道菜，包含${cuisineVariety.length}种风味（${cuisineVariety.join(
-        "、"
-      )}），预计${cookingTimeStats.estimatedTotalTime}分钟完成，平均难度${
-        difficultyAnalysis.averageDifficulty
-      }星。${extraDishes.length > 0 ? "已包含汤品/主食。" : ""}${
+      message: `为${peopleCount}人定制的${
+        vegetarian ? "全素" : "多样化"
+      }菜单：共${allSelectedDishes.length}道菜，包含${
+        cuisineVariety.length
+      }种风味（${cuisineVariety.join("、")}），预计${
+        cookingTimeStats.estimatedTotalTime
+      }分钟完成，平均难度${difficultyAnalysis.averageDifficulty}星。${
+        extraDishes.length > 0 ? "已包含汤品/主食。" : ""
+      }${
         avoidIngredients.length > 0
           ? `已避免：${avoidIngredients.join("、")}。`
           : ""
-      }`,
+      }${vegetarian ? "已确保所有菜品不含动物成分。" : ""}`,
     };
 
     return recommendationDetails;
