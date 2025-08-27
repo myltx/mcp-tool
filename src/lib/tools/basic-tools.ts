@@ -53,3 +53,55 @@ export const getAllWebsites: ToolBase = {
     }
   },
 };
+
+/**
+ * MCP网站搜索工具
+ */
+export const mcpWebsiteSearch: ToolBase = {
+  description: "通过关键词搜索MCP网站信息，支持限制返回数量",
+  defaultArgs: { limit: 10, keyword: "" },
+  execute: async (args) => {
+    const limit = parseNumberParam(args, "limit") ?? 10;
+    const keyword = parseStringParam(args, "keyword", "");
+
+    try {
+      // 构建查询参数
+      const params = new URLSearchParams();
+      params.append("limit", limit.toString());
+      if (keyword) {
+        params.append("keyword", keyword);
+      }
+
+      const res = await fetch(
+        `https://dream-hub.api.myltx.top/website/mcp?${params.toString()}`
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      return {
+        success: true,
+        data: data,
+        total: Array.isArray(data) ? data.length : 0,
+        limit: limit,
+        keyword: keyword,
+      };
+    } catch (error) {
+      console.error("Failed to search MCP websites:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to search MCP websites",
+        data: [],
+        total: 0,
+        limit: limit,
+        keyword: keyword,
+      };
+    }
+  },
+};

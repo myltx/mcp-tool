@@ -15,7 +15,7 @@ import {
 } from "./recipe-tools";
 
 // 基础工具
-import { hello, time, getAllWebsites } from "./basic-tools";
+import { hello, time, getAllWebsites, mcpWebsiteSearch } from "./basic-tools";
 
 /**
  * 所有 MCP 工具集合
@@ -25,6 +25,7 @@ export const tools: Record<string, ToolBase> = {
   hello,
   time,
   getAllWebsites,
+  mcpWebsiteSearch,
 
   // 菜谱相关工具
   searchRecipes,
@@ -41,6 +42,7 @@ export {
   hello,
   time,
   getAllWebsites,
+  mcpWebsiteSearch,
 
   // 菜谱相关工具
   searchRecipes,
