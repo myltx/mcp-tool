@@ -9,6 +9,27 @@ import { makeResponse } from "@/lib/utils";
 import { tools } from "@/lib/tools";
 
 /**
+ * CORS 头部配置
+ */
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Max-Age": "86400",
+};
+
+/**
+ * 处理 OPTIONS 预检请求
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
+/**
  * 处理 MCP GET 请求
  */
 export async function GET(req: NextRequest) {
@@ -26,13 +47,14 @@ export async function GET(req: NextRequest) {
         },
         undefined,
         mode
-      )
+      ),
+      { headers: corsHeaders }
     );
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -52,7 +74,7 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json(
         makeResponse(null, undefined, mode, "Invalid or empty JSON body"),
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -63,18 +85,20 @@ export async function POST(req: NextRequest) {
       if (!tool) {
         return NextResponse.json(
           makeResponse(null, body.id, mode, `Unknown tool: ${name}`),
-          { status: 400 }
+          { status: 400, headers: corsHeaders }
         );
       }
 
       try {
         const result = await tool.execute(args);
-        return NextResponse.json(makeResponse(result, body.id, mode));
+        return NextResponse.json(makeResponse(result, body.id, mode), {
+          headers: corsHeaders,
+        });
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         return NextResponse.json(
           makeResponse(null, body.id, mode, errorMessage),
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     } else if (body.method === "tools/list") {
@@ -84,7 +108,9 @@ export async function POST(req: NextRequest) {
         defaultArgs: tool.defaultArgs || {},
       }));
 
-      return NextResponse.json(makeResponse(toolsList, body.id, mode));
+      return NextResponse.json(makeResponse(toolsList, body.id, mode), {
+        headers: corsHeaders,
+      });
     } else {
       return NextResponse.json(
         makeResponse(
@@ -93,14 +119,14 @@ export async function POST(req: NextRequest) {
           mode,
           "Unknown method"
         ),
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
