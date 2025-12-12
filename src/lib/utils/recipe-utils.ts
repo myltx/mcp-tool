@@ -116,11 +116,11 @@ export function simplifyRecipe(recipe: Recipe): SimplifiedRecipe {
 }
 
 /**
- * 检查菜谱是否为荒菜（根据分类和食材判断）
+ * 检查菜谱是否为荤菜（根据分类和食材判断）
  */
 export function isMeatDish(recipe: Recipe): boolean {
   // 分类判断
-  if (recipe.category === "荒菜" || recipe.category === "水产") {
+  if (recipe.category === "荤菜" || recipe.category === "水产") {
     return true;
   }
 
@@ -182,8 +182,8 @@ export function containsAnimalProtein(recipe: Recipe): boolean {
  * 检查菜谱是否为素菜（更严格的判断）
  */
 export function isVegetableDish(recipe: Recipe): boolean {
-  // 排除明确的荒菜分类
-  if (recipe.category === "荒菜" || recipe.category === "水产") {
+  // 排除明确的荤菜分类
+  if (recipe.category === "荤菜" || recipe.category === "水产") {
     return false;
   }
 
